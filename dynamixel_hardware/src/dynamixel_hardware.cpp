@@ -212,6 +212,8 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
   std::vector<uint8_t> ids(info_.joints.size(), 0);
   std::vector<int32_t> commands(info_.joints.size(), 0);
   float velocity = 0.0;
+  int32_t value = 0;
+  
   std::copy(joint_ids_.begin(), joint_ids_.end(), ids.begin());
   const char * log = nullptr;
 
@@ -220,11 +222,14 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
     // Velocity control
     set_control_mode(ControlMode::Velocity);
     for (uint i = 0; i < ids.size(); i++) {
-      RCLCPP_INFO(rclcpp::get_logger(kDynamixelHardware), "Setting goal velocity for joint id %d to %5.3f", ids[i], joints_[i].command.velocity);
-      
+            
       velocity = static_cast<float>(joints_[i].command.velocity);
+      value = dynamixel_workbench_.convertVelocity2Value(ids[i], velocity);
+      if (value < 0) value *= -1; //0-1023 = CCW direction, 1024-2047 = CW direction
 
-      if (!dynamixel_workbench_.goalVelocity(ids[i], velocity, &log))
+      RCLCPP_INFO(rclcpp::get_logger(kDynamixelHardware), "Setting goal velocity for joint id %d to %5.3f [%d]", ids[i], joints_[i].command.velocity, value);
+
+      if (!dynamixel_workbench_.goalVelocity(ids[i], value, &log))
       {
         RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
         return return_type::ERROR;
