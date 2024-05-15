@@ -99,7 +99,7 @@ CallbackReturn DynamixelHardware::on_init(const hardware_interface::HardwareInfo
   }
 
   enable_torque(false);
-  set_control_mode(ControlMode::Position, true);
+  set_control_mode(ControlMode::Velocity, true);
   for (uint i = 0; i < info_.joints.size(); ++i) {
     for (auto paramName : kExtraJointParameters) {
       if (info_.joints[i].parameters.find(paramName) != info_.joints[i].parameters.end()) {
@@ -217,16 +217,23 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
   std::copy(joint_ids_.begin(), joint_ids_.end(), ids.begin());
   const char * log = nullptr;
 
-  if (std::any_of(
-        joints_.cbegin(), joints_.cend(), [](auto j) { return j.command.velocity != 0.0; })) {
+  if (control_mode_ == ControlMode::Velocity) {
     // Velocity control
-    set_control_mode(ControlMode::Velocity);
+    
     for (uint i = 0; i < ids.size(); i++) {
             
       velocity = static_cast<float>(joints_[i].command.velocity);
+      
+      if (velocity > 10 || velocity < -10)
+      {
+        RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "Velocity setpoint out of range!");
+        return return_type::OK;
+      }
+
       if (ids[i] == 2) velocity *= -1; //Hardcoded direction switch for smart_diffbot_workshop with real hardware. TODO: set direction properly!
 
       value = dynamixel_workbench_.convertVelocity2Value(ids[i], velocity);
+      
       if (value < 0) value *= -1; //0-1023 = CCW direction, 1024-2047 = CW direction
 
       if (!dynamixel_workbench_.goalVelocity(ids[i], value, &log))
@@ -243,13 +250,14 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
     return return_type::ERROR;
   }
 
-  // Position control
-  set_control_mode(ControlMode::Position);
-  for (uint i = 0; i < ids.size(); i++) {
-    if (!dynamixel_workbench_.goalPosition(ids[i], static_cast<float>(joints_[i].command.position), &log))
-    {
-      RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
-      return return_type::ERROR;
+  if (control_mode_ == ControlMode::Position){
+    // Position control
+    for (uint i = 0; i < ids.size(); i++) {
+      if (!dynamixel_workbench_.goalPosition(ids[i], static_cast<float>(joints_[i].command.position), &log))
+      {
+        RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
+        return return_type::ERROR;
+      }
     }
   }
 
