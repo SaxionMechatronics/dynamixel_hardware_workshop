@@ -224,6 +224,8 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
     for (uint i = 0; i < ids.size(); i++) {
             
       velocity = static_cast<float>(joints_[i].command.velocity);
+      if (ids[i] == 2) velocity *= -1; //Hardcoded direction switch for smart_diffbot_workshop with real hardware. TODO: set direction properly!
+      
       value = dynamixel_workbench_.convertVelocity2Value(ids[i], velocity);
       if (value < 0) value *= -1; //0-1023 = CCW direction, 1024-2047 = CW direction
 
