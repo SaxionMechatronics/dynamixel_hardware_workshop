@@ -227,8 +227,6 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
       value = dynamixel_workbench_.convertVelocity2Value(ids[i], velocity);
       if (value < 0) value *= -1; //0-1023 = CCW direction, 1024-2047 = CW direction
 
-      RCLCPP_INFO(rclcpp::get_logger(kDynamixelHardware), "Setting goal velocity for joint id %d to %5.3f [%d]", ids[i], joints_[i].command.velocity, value);
-
       if (!dynamixel_workbench_.goalVelocity(ids[i], value, &log))
       {
         RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
